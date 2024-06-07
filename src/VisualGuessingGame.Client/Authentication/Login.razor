@@ -1,0 +1,11 @@
+@page "/login"
+@inject CognitoAuthenticationService AuthenticationService
+
+Logging in...
+
+@code {
+    protected override Task OnInitializedAsync()
+    {
+        return AuthenticationService.ProcessLogIn();
+    }
+}

@@ -1,0 +1,105 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@using System.Text
+@using System.Web
+@page "/pickimage/{selectedgame}"
+@inject NavigationManager Navigation
+@inject IHttpClientFactory HttpClientFactory
+@attribute [Authorize]
+@layout EmptyPageLayout
+
+@{
+    StringBuilder titleBuilder = new StringBuilder("Visual Guessing Game");
+    if (SelectedGame is not null && SelectedGame != string.Empty)
+    {
+        titleBuilder.Append($" - {SelectedGame}");
+    }
+    <PageTitle>@titleBuilder.ToString()</PageTitle>
+}
+
+<MudStack Spacing="4">
+    <MudStack>
+        <MudText Class="mt-4" Typo="Typo.h6" Align="Align.Center">Pick a picture and validate your choice</MudText>
+        <MudButton Disabled="@(_selectedImage == null)" Variant="Variant.Filled" Color="Color.Success" EndIcon="@Icons.Material.Filled.PlayArrow" OnClick="OnPlayGame">Let's try to make the AI guess your image!</MudButton>
+    </MudStack>
+<MudGrid Class="mt-4" Justify="Justify.Center" Spacing="2">
+    @foreach(var image in _images)
+    {
+        string border = string.Empty;
+        if(image.Value.aiSelected)
+        {
+            border = "border-solid border-8 mud-border-primary pa-4";
+        }
+        <MudItem xs="3">
+            <MudCard Class="@border">
+                <MudCardMedia Image="@image.Key.PreSignedUrl">
+                </MudCardMedia>
+                <MudCardActions>
+                    <MudCheckBox Class="ml-auto" Size="Size.Large" Color="Color.Primary" UnCheckedColor="Color.Default" CheckedIcon="@Icons.Material.Filled.CheckCircleOutline" UncheckedIcon="@Icons.Material.Outlined.RadioButtonUnchecked" T="bool" Value="@image.Value.Item2" onclick="@(() => OnCheckedChanged(image.Key))"></MudCheckBox>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+    }
+</MudGrid>
+</MudStack>
+
+@code {
+    [Parameter]
+    public string? SelectedGame { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? _authenticationState { get; set; }
+
+    private HttpClient? _httpClient;
+
+    private ImagePreSignedUrl? _selectedImage = null;
+
+    private IDictionary<ImagePreSignedUrl, (string name, bool humanSelected, bool aiSelected)> _images = new Dictionary<ImagePreSignedUrl, (string name, bool humanSelected, bool aiSelected)>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _httpClient = HttpClientFactory.CreateClient("WebApi");
+        await base.OnInitializedAsync();
+        return;
+    }
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_httpClient is not null)
+        {
+            var imagePreSignedUrls = await _httpClient.GetFromJsonAsync<IEnumerable<ImagePreSignedUrl>>($"api/imagestorage/collections/{SelectedGame}");
+            if (imagePreSignedUrls! is not null)
+            {
+                foreach (var imagePresignedUrl in imagePreSignedUrls)
+                {
+                    _images.Add(imagePresignedUrl, (string.Empty, false, false));
+                }
+            }
+        }
+        await base.OnParametersSetAsync();
+        return;
+    }
+
+    private void OnPlayGame()
+    {
+        Navigation.NavigateTo($"describeimage?game={_selectedImage?.CollectionName}&image={_selectedImage?.ImageName}&presignedurl={ HttpUtility.UrlEncode(_selectedImage?.PreSignedUrl) }");
+    }
+
+    private void OnCheckedChanged(ImagePreSignedUrl value)
+    {
+        _selectedImage = value;
+        foreach(var image in _images)
+        {
+            if(image.Key == value)
+            {
+                _images[value] = (_images[value].Item1, !_images[value].Item2, false);
+            }
+            else
+            {
+                _images[image.Key] = (_images[image.Key].Item1, false, false);
+            }
+        }
+        StateHasChanged();
+
+    }
+
+    public record ImagePreSignedUrl(string CollectionName, string ImageName, string PreSignedUrl);
+}

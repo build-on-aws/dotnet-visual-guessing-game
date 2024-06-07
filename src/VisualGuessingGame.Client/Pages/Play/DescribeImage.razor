@@ -1,0 +1,64 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@using System.Text
+@using System.Web
+@page "/describeimage"
+@inject NavigationManager Navigation
+@inject IHttpClientFactory HttpClientFactory
+@attribute [Authorize]
+@layout EmptyWindowLayout
+
+@{
+    StringBuilder titleBuilder = new StringBuilder("Visual Guessing Game");
+    if (Game is not null && Game != string.Empty)
+    {
+        titleBuilder.Append($" - {Game}");
+    }
+    <PageTitle>@titleBuilder.ToString()</PageTitle>
+}
+
+<MudStack Row="true" Spacing="8" Style="width:80dvw">
+    <MudImage Src="@PresignedUrl" Height="512" Elevation="2"/>
+    <MudPaper Class="d-flex flex-grow-1">
+        <MudStack Spacing="2" Class="pa-2 flex-grow-1">
+            <MudTextField FullWidth="true" Immediate="true" Counter=0 Label="Describe the image" @bind-Value="_prompt" Lines=5 AutoGrow="true" Variant="Variant.Outlined" />
+            <MudButton Class="ml-auto" ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" OnClick="AskTheAI">Ask the AI to guess</MudButton>
+        </MudStack>
+    </MudPaper>
+</MudStack>
+ 
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? _authenticationState { get; set; }
+
+    [SupplyParameterFromQuery(Name = "game")]
+    public string? Game { get; set; }
+
+    [SupplyParameterFromQuery(Name = "image")]
+    public string? ImageName { get; set; }
+
+    [SupplyParameterFromQuery(Name = "presignedurl")]
+    public string? PresignedUrl { get; set; }
+
+    private HttpClient? _httpClient;
+
+    private string _prompt = String.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _httpClient = HttpClientFactory.CreateClient("WebApi");
+        await base.OnInitializedAsync();
+        return;
+    }
+
+    private async Task AskTheAI(MouseEventArgs e)
+    {
+        if (_prompt != String.Empty)
+        {
+            Navigation.NavigateTo($"gameresults?game={HttpUtility.UrlEncode(Game)}&image={HttpUtility.UrlEncode(ImageName)}&presignedurl={HttpUtility.UrlEncode(PresignedUrl)}&prompt={HttpUtility.UrlEncode(_prompt)}");
+        }
+    }
+
+    public record ImagePreSignedUrl(string CollectionName, string ImageName, string PreSignedUrl);
+
+    public record LanceDBQueryResponse(string req_id, string top1, string top2);
+}

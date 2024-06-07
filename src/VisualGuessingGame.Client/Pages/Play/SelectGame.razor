@@ -1,0 +1,53 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@page "/selectgame"
+@inject NavigationManager Navigation
+@inject IHttpClientFactory HttpClientFactory
+@attribute [Authorize]
+
+<PageTitle>Visual Guessing Game</PageTitle>
+
+<MudStack>
+    <MudText Typo="Typo.h6">Select a visual guessing game</MudText>
+    <MudSelect Disabled="@(_imageCollections is null || _imageCollections.Count() == 0)"  Placeholder="Please select" @bind-Value="_selectedValue">
+        @if (_imageCollections is not null)
+        {
+            foreach (var imageCollection in _imageCollections)
+            {
+                <MudSelectItem Value="@imageCollection" />
+            }
+        }
+    </MudSelect>
+    <MudButton Disabled="@(_selectedValue == String.Empty)" Variant="Variant.Filled" Color="Color.Success" EndIcon="@Icons.Material.Filled.PlayArrow" OnClick="OnPlayGame">Let's play @(_selectedValue)!</MudButton>
+</MudStack>
+
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? _authenticationState { get; set; }
+
+    private HttpClient? _httpClient;
+
+    private string _selectedValue = String.Empty;
+
+    private IEnumerable<string>? _imageCollections = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _httpClient = HttpClientFactory.CreateClient("WebApi");
+        if (_authenticationState is not null && _httpClient is not null)
+        {
+            if ((await _authenticationState).User?.Identity?.IsAuthenticated ?? false)
+            {
+                _imageCollections = await _httpClient.GetFromJsonAsync<IEnumerable<string>>("api/imagestorage/collections");
+            }
+        }
+        await base.OnInitializedAsync();
+        return;
+    }
+
+    private void OnPlayGame()
+    {
+        Navigation.NavigateTo($"pickimage/{_selectedValue}");
+    }
+
+}

@@ -1,0 +1,24 @@
+﻿@inject IHttpClientFactory HttpClientFactory
+@inject IDialogService DialogService
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="TextValue" Variant="Variant.Filled"></MudTextField>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Create</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    public string TextValue { get; set; }
+
+    async Task Submit()
+    {
+        MudDialog.Close(DialogResult.Ok<string>(TextValue));
+    }
+    void Cancel() => MudDialog.Close(DialogResult.Ok<string>(string.Empty));
+}

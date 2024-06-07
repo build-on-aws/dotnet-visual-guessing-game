@@ -1,0 +1,162 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@using System.Text
+@using System.Web
+@page "/gameresults"
+@inject NavigationManager Navigation
+@inject IHttpClientFactory HttpClientFactory
+@attribute [Authorize]
+
+@{
+    StringBuilder titleBuilder = new StringBuilder("Visual Guessing Game");
+    if (Game is not null && Game != string.Empty)
+    {
+        titleBuilder.Append($" - {Game}");
+    }
+    <PageTitle>@titleBuilder.ToString()</PageTitle>
+}
+
+<MudStack Spacing="8">
+    <MudStack Row="true" Spacing="8" >
+        <MudStack>
+            <MudText Align="Align.Center" Typo="Typo.h6">Your image</MudText>
+            <MudImage Src="@PresignedUrl" Height="512" Elevation="2"/>
+        </MudStack>
+        <MudStack>
+            @if (_top1PresignedUrl is null)
+            {
+                <MudText Align="Align.Center" Typo="Typo.h6">The AI is guessing</MudText>
+                <MudSkeleton Height="512px" Width="512px" SkeletonType="SkeletonType.Rectangle"/>
+            }
+            else if(!_tryAgain)
+            {
+                <MudText Align="Align.Center" Typo="Typo.h6">The AI's guess</MudText>
+                <MudImage Src="@_top1PresignedUrl.PreSignedUrl" Height="512" Elevation="2" />
+            }
+            else if(_top2PresignedUrl is null)
+            {
+                <MudText Align="Align.Center" Typo="Typo.h6">The AI is guessing</MudText>
+                <MudSkeleton Height="512px" Width="512px" SkeletonType="SkeletonType.Rectangle" />
+            }
+            else
+            {
+                <MudText Align="Align.Center" Typo="Typo.h6">Here is the AI's guess at second try</MudText>
+                <MudImage Src="@_top2PresignedUrl.PreSignedUrl" Height="512" Elevation="2" />
+            }
+        </MudStack>
+    </MudStack>
+    @if (_top1PresignedUrl is null)
+    {
+        <MudText Align="Align.Center" Typo="Typo.h6">Let's see if the AI will be able to guess.</MudText>
+    }
+    else if (_top1PresignedUrl.ImageName == ImageName)
+    {
+        <MudText Align="Align.Center" Typo="Typo.h6" Color="Color.Success">The AI has guessed your image at first try! 🎉</MudText>
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" OnClick="PlayAgain">Play again!</MudButton>
+    }
+    else if (_tryAgain && _top2PresignedUrl is null)
+    {
+        <MudText Align="Align.Center" Typo="Typo.h6">Let's see if the AI will be able to guess at second try.</MudText>
+    }
+    else if (_tryAgain && _top2PresignedUrl?.ImageName == ImageName)
+    {
+        <MudText Align="Align.Center" Typo="Typo.h6" Color="Color.Success">The AI has guessed your image at second try! 🎉</MudText>
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" OnClick="PlayAgain">Play again!</MudButton>
+    }
+    else if(_tryAgain)
+    {
+        <MudText Align="Align.Center" Typo="Typo.h6" Color="Color.Error">Even at second try, the AI is wrong! Do you want to change your description?</MudText>
+        <MudStack Class="justify-center" Row="true" Spacing="2">
+            <MudButton Class="flex-grow-1" ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" OnClick="DescribeAgain">Yes, let's change it!</MudButton>
+            <MudButton Class="flex-grow-1" ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" OnClick="PlayAgain">No, let's play again!</MudButton>
+        </MudStack>
+    }
+    else
+    {
+        <MudText Align="Align.Center" Typo="Typo.h6" Color="Color.Error">The AI is wrong! Do you want to give it another chance?</MudText>
+        <MudStack Class="justify-center" Row="true" Spacing="2">
+            <MudButton Class="flex-grow-1" ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" OnClick="TryAgain">Yes, let's try again!</MudButton>
+            <MudButton Class="flex-grow-1" ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" OnClick="PlayAgain">No, let's play again!</MudButton>
+        </MudStack>
+    }
+</MudStack>
+ 
+    
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? _authenticationState { get; set; }
+
+    [SupplyParameterFromQuery(Name = "game")]
+    public string? Game { get; set; }
+
+    [SupplyParameterFromQuery(Name = "image")]
+    public string? ImageName { get; set; }
+
+    [SupplyParameterFromQuery(Name = "presignedurl")]
+    public string? PresignedUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "prompt")]
+    public string? Prompt { get; set; }
+
+    private ImagePreSignedUrl? _top1PresignedUrl = null;
+
+    private ImagePreSignedUrl? _top2PresignedUrl = null;
+
+    private HttpClient? _httpClient = null;
+
+    private bool _tryAgain = false;
+
+    protected override void OnInitialized()
+    {
+        _httpClient = HttpClientFactory.CreateClient("WebApi");
+        base.OnInitialized();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _ = QueryAndLoadAIGuess();
+        await base.OnParametersSetAsync();
+    }
+
+    private async Task QueryAndLoadAIGuess()
+    {
+        if (_authenticationState is not null && _httpClient is not null && Prompt is not null && Prompt != String.Empty)
+        {
+            var response = await _httpClient.PostAsync($"api/imagequery/{Game}", new StringContent(Prompt));
+            if (response != null && response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<LanceDBQueryResponse>();
+                if (result is not null)
+                {
+                    Parallel.Invoke(
+                        async () => { 
+                            _top1PresignedUrl = await _httpClient.GetFromJsonAsync<ImagePreSignedUrl>($"api/imagestorage/collections/{Game}/{result.top1}");
+                            StateHasChanged();
+                        },
+                        async () => { 
+                            _top2PresignedUrl = await _httpClient.GetFromJsonAsync<ImagePreSignedUrl>($"api/imagestorage/collections/{Game}/{result.top2}"); 
+                            StateHasChanged();
+                        });
+                }
+            }
+        }
+    } 
+
+    private void PlayAgain(MouseEventArgs e)
+    {
+        Navigation.NavigateTo("selectgame");
+    }
+
+    private void TryAgain(MouseEventArgs e)
+    {
+        _tryAgain = true;
+    }
+
+    private void DescribeAgain(MouseEventArgs e)
+    {
+        Navigation.NavigateTo($"describeimage?game={Game}&image={ImageName}&presignedurl={HttpUtility.UrlEncode(PresignedUrl)}");
+    }
+
+    public record ImagePreSignedUrl(string CollectionName, string ImageName, string PreSignedUrl);
+
+    public record LanceDBQueryResponse(string req_id, string top1, string top2);
+}

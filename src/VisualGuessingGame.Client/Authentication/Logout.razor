@@ -1,0 +1,11 @@
+@page "/logout"
+@inject CognitoAuthenticationService AuthenticationService
+
+Logging in...
+
+@code {
+    protected override void OnInitialized()
+    {
+        AuthenticationService.ProcessLogOut();
+    }
+}

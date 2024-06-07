@@ -1,0 +1,11 @@
+@page "/login-callback"
+@inject CognitoAuthenticationService AuthenticationService
+
+Processing successful login
+
+@code {
+    protected override Task OnInitializedAsync()
+    {
+        return AuthenticationService.ProcessLogInCallback();
+    }
+}

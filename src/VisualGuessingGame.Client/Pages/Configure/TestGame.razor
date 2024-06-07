@@ -1,0 +1,150 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@page "/testgame"
+@inject IHttpClientFactory HttpClientFactory
+@attribute [Authorize]
+
+<PageTitle>Visual Guessing Game</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        <MudSelect @ref=_mudSelect T="string" Label="Select an image collection" Value="@_selectedValue" ValueChanged="OnValueChanged">
+            @if (_imageCollections is not null)
+            {
+                foreach (var imageCollection in _imageCollections)
+                {
+                    <MudSelectItem Value="@imageCollection" />
+                }
+            }
+        </MudSelect>
+        <MudText Class="mt-4" Typo="Typo.subtitle1">Select a picture</MudText>
+        <MudGrid Class="mt-4" Justify="Justify.Center" Spacing="2">
+            @foreach(var image in _images)
+            {
+                string border = string.Empty;
+                if(image.Value.aiSelected)
+                {
+                    border = "border-solid border-8 mud-border-primary pa-4";
+                }
+                <MudItem xs="3">
+                    <MudCard Class="@border">
+                        <MudCardMedia Image="@image.Key.PreSignedUrl">
+                        </MudCardMedia>
+                        <MudCardActions>
+                            <MudCheckBox Class="ml-auto" Size="Size.Large" Color="Color.Primary" UnCheckedColor="Color.Default" CheckedIcon="@Icons.Material.Filled.CheckCircleOutline" UncheckedIcon="@Icons.Material.Outlined.RadioButtonUnchecked" T="bool" Value="@image.Value.Item2" onclick="@(() => OnCheckedChanged(image.Key))"></MudCheckBox>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+        <MudPaper Class="mt-4">
+            <MudStack Spacing="2" Class="pa-2">
+                <MudTextField Counter=0 id="PromptId" Label="Describe the image" @bind-Value="_prompt" Lines=5 Variant="Variant.Outlined" />
+                <MudStack Row="true" Spacing="2" Class="pa-2">
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto" OnClick="Reset">Reset</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" OnClick="AskTheAI">Ask the AI to guess</MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    </Authorized>
+    <NotAuthorized>
+        You need to be authenticated to use this application
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? _authenticationState { get; set; }
+
+    private HttpClient? _httpClient;
+
+    private MudSelect<string>? _mudSelect;
+
+    private string _selectedValue = String.Empty;
+
+    private IEnumerable<string>? _imageCollections = null;
+
+    private IDictionary<ImagePreSignedUrl, (string name, bool humanSelected, bool aiSelected)> _images = new Dictionary<ImagePreSignedUrl, (string name, bool humanSelected, bool aiSelected)>();
+
+    private string _prompt = String.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _httpClient = HttpClientFactory.CreateClient("WebApi");
+        if (_authenticationState is not null && _httpClient is not null)
+        {
+            if ((await _authenticationState).User?.Identity?.IsAuthenticated ?? false)
+            {
+                _imageCollections = await _httpClient.GetFromJsonAsync<IEnumerable<string>>("api/imagestorage/collections");
+            }
+        }
+        await base.OnInitializedAsync();
+    }
+
+    private void Reset(MouseEventArgs e)
+    {
+        _prompt = String.Empty;
+        foreach(var imageKey in _images.Keys)
+        {
+            _images[imageKey] = (_images[imageKey].name, false, false);
+        }
+    }
+
+    private async Task AskTheAI(MouseEventArgs e)
+    {
+        if (_authenticationState is not null && _httpClient is not null && _prompt != String.Empty)
+        {
+            var response = await _httpClient.PostAsync($"api/imagequery/{_selectedValue}", new StringContent(_prompt));
+
+            if (response != null && response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<LanceDBQueryResponse>();
+                if(result is not null)
+                {
+                    var imageSelectedByAI = _images.Where(x => x.Key.ImageName == result.top1).Select(x => x.Key).FirstOrDefault();
+                    if (imageSelectedByAI is not null)
+                    {
+                        _images[imageSelectedByAI] = (_images[imageSelectedByAI].Item1, _images[imageSelectedByAI].Item2, true);
+                    }
+                }
+            }
+        }
+    }
+
+    private void OnCheckedChanged(ImagePreSignedUrl value)
+    {
+        foreach(var image in _images)
+        {
+            if(image.Key == value)
+            {
+                _images[value] = (_images[value].Item1, !_images[value].Item2, false);
+            }
+            else
+            {
+                _images[image.Key] = (_images[image.Key].Item1, false, false);
+            }
+        }
+        StateHasChanged();
+
+    }
+
+    private async Task OnValueChanged(string value)
+    {
+        _selectedValue = value;
+        _images.Clear();
+        if (_httpClient is not null)
+        {
+            var imagePreSignedUrls = await _httpClient.GetFromJsonAsync<IEnumerable<ImagePreSignedUrl>>($"api/imagestorage/collections/{value}");
+            if (imagePreSignedUrls! is not null)
+            {
+                foreach (var imagePresignedUrl in imagePreSignedUrls)
+                {
+                    _images.Add(imagePresignedUrl, (string.Empty, false, false));
+                }
+            }
+        }
+    }
+
+    public record ImagePreSignedUrl(string CollectionName, string ImageName, string PreSignedUrl);
+
+    public record LanceDBQueryResponse(string req_id, string top1, string top2);
+}

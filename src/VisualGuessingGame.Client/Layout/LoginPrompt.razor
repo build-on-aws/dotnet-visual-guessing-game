@@ -1,0 +1,29 @@
+﻿@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@inject NavigationManager Navigation
+
+<MudStack Spacing="2">
+    <MudText Typo="Typo.h6">You need to be logged in to use this application. Please logged in by clicking on the below button.</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="BeginLogIn">Log in</MudButton>
+</MudStack>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? _authenticationState { get; set; }
+
+    protected override async void OnInitialized()
+    {
+        var uri = new Uri(Navigation.Uri);
+        if (uri.Query.Contains("code=")) Navigation.NavigateTo($"/login-callback{uri.Query}");
+
+        if ((_authenticationState is not null) && ((await _authenticationState).User.Identity?.IsAuthenticated ?? false))
+        {
+            Navigation.NavigateTo("selectmode");
+        }
+    }
+
+    public void BeginLogIn(MouseEventArgs e)
+    {
+        Navigation.NavigateToLogin("login");
+    }
+
+}

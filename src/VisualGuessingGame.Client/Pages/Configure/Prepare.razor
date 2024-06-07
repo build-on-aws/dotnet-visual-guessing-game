@@ -1,0 +1,138 @@
+﻿@page "/prepare"
+@attribute [Authorize]
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Prepare game</PageTitle>
+
+<h2>Prepare game</h2>
+
+Select an image collection to index in the vector database
+
+<MudSelect Class="ma-2" @ref=_mudSelect T="string" Label="Select a collection to index" Value="@_selectedValue" ValueChanged="OnValueChanged">
+    @if (_imageCollections is not null)
+    {
+        foreach (var imageCollection in _imageCollections)
+        {
+            <MudSelectItem Value="@imageCollection" />
+        }
+    }
+</MudSelect>
+<MudPaper>
+    <MudStack Spacing="2" Class="ma-2 pa-2 justify-center" Row="true">
+        <MudButton Disabled="@(_images.Count == 0)" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Description" Color="Color.Info" OnClick="OnDescribeAll">Describe all images</MudButton>
+        <MudButton Disabled="@(_images.Count == 0)" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Storage" Color="Color.Info" OnClick="OnIndexAll">Index all descriptions</MudButton>
+    </MudStack>
+</MudPaper> 
+<MudStack Spacing=2 Justify="Justify.Center" Class="mt-4">
+    @if (_images is not null)
+    {
+        foreach (var image in _images)
+        {
+            <MudStack Spacing="2" Row="true">
+                <MudCard>
+                    <MudCardContent>
+                        <MudImage Height="300" Src="@image.Key.PreSignedUrl"></MudImage>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Description" Color="Color.Info" Class="ml-auto" OnClick="@(e => OnDescribe(image.Key))">Describe</MudButton>
+                    </MudCardActions>
+                </MudCard>
+                <MudPaper Class="d-flex flex-grow-1">
+                    <MudStack Class="ma-2 flex-grow-1" Spacing="2">
+                        <MudTextField T="string" Disabled="@(!image.Value.edit)" Variant="Variant.Text" AutoGrow="true" Lines="14" Value="@image.Value.description" />
+                        <MudStack Row="true">
+                            <MudButton Disabled="@(image.Value.description == String.Empty)" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Storage" Color="Color.Info" Class="ml-auto mt-auto" OnClick="@(e => OnEdit(image.Key))">@(image.Value.edit ? "Save description" : "Edit description" )</MudButton>
+                            <MudButton Disabled="@(image.Value.description == String.Empty || image.Value.edit)" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Storage" Color="Color.Info" Class="mt-auto" OnClick="@(e => OnIndex(image.Key))">Index description</MudButton>
+                        </MudStack>
+                    </MudStack>
+                </MudPaper>
+            </MudStack>
+        }
+    }
+</MudStack>
+
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? _authenticationState { get; set; }
+
+    private string _selectedValue = String.Empty;
+
+    private MudSelect<string>? _mudSelect;
+
+    private IEnumerable<string>? _imageCollections = null;
+
+    private IDictionary<ImagePreSignedUrl, (string description, bool edit)> _images = new Dictionary<ImagePreSignedUrl, (string description, bool edit)>();
+
+    private HttpClient? _httpClient;
+
+    protected override void OnInitialized()
+    {
+        _httpClient = HttpClientFactory.CreateClient("WebApi");
+        base.OnInitialized();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_authenticationState is not null && _httpClient is not null)
+        {
+            if ((await _authenticationState).User?.Identity?.IsAuthenticated ?? false)
+            {
+                _imageCollections = await _httpClient.GetFromJsonAsync<IEnumerable<string>>("api/imagestorage/collections");
+            }
+        }
+        await base.OnParametersSetAsync();
+    }
+
+    private void OnDescribeAll(MouseEventArgs e)
+    {
+        Parallel.ForEach(_images.Keys, async (x) => { await OnDescribe(x);  StateHasChanged(); });
+    }
+
+    private void OnIndexAll(MouseEventArgs e)
+    {
+        Parallel.ForEach(_images.Keys, async (x) => { await OnIndex(x); StateHasChanged(); });
+    }
+
+    private async Task OnDescribe(ImagePreSignedUrl imagePresignedUrl)
+    {
+        if (_httpClient is not null)
+        {
+            var imageDescription = await _httpClient.GetStringAsync($"api/imagedescription/{imagePresignedUrl.CollectionName}/{imagePresignedUrl.ImageName}");
+            _images[imagePresignedUrl] = (imageDescription, false);
+        }
+    }
+    private async Task OnIndex(ImagePreSignedUrl imagePresignedUrl)
+    {
+        if (_httpClient is not null)
+        {
+            var result = await _httpClient.PostAsync($"api/imageindexation/{imagePresignedUrl.CollectionName}/{imagePresignedUrl.ImageName}", new StringContent(_images[imagePresignedUrl].description));
+        }        
+    }
+
+    private void OnEdit(ImagePreSignedUrl imagePresignedUrl)
+    {
+        _images[imagePresignedUrl] = (_images[imagePresignedUrl].description, !_images[imagePresignedUrl].edit);
+    }
+
+
+    private async Task OnValueChanged(string value)
+    {
+        _selectedValue = value;
+        _images.Clear();
+        if (_httpClient is not null)
+        {
+            var imagePreSignedUrls = await _httpClient.GetFromJsonAsync<IEnumerable<ImagePreSignedUrl>>($"api/imagestorage/collections/{value}");
+            if (imagePreSignedUrls! is not null)
+            {
+                foreach (var imagePresignedUrl in imagePreSignedUrls)
+                {
+                    _images.Add(imagePresignedUrl, (string.Empty, false));
+                }
+            }
+        }
+    }
+
+    public record ImagePreSignedUrl(string CollectionName, string ImageName, string PreSignedUrl);
+
+}

@@ -1,0 +1,83 @@
+﻿@inject IHttpClientFactory HttpClientFactory
+@inject IDialogService DialogService
+
+<MudDialog>
+    <DialogContent>
+        <MudImage Src="@($"data:image/jpeg;base64,{Image}")"></MudImage>
+        <MudSelect @ref=_mudSelect T="string" Label="Select or create a game to add your image to">
+            @if(_imageCollections is not null)
+            {
+                foreach(var imageCollection in _imageCollections)
+                {
+                    <MudSelectItem Value="@imageCollection"/>
+                }
+            }
+            <MudSelectItem Value="@("Create a new game")"/>
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Add</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public string Image { get; set; }
+
+    private MudSelect<string>? _mudSelect;
+
+    private IEnumerable<string>? _imageCollections = null;
+
+    private HttpClient _httpClient;
+
+    protected override void OnInitialized()
+    {
+        _httpClient = HttpClientFactory.CreateClient("WebApi");
+        base.OnInitialized();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _imageCollections = await _httpClient.GetFromJsonAsync<IEnumerable<string>>("api/imagestorage/collections");
+        await base.OnParametersSetAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+
+        base.OnParametersSet();
+    }
+
+    async Task Submit()
+    {
+        bool result = true;
+        if(_mudSelect is not null && _mudSelect.Value is not null)
+        {
+            string collectionName = String.Empty;
+            if (_mudSelect.Value == "Create a new game")
+            {
+                var dialog = await DialogService.ShowAsync<Components.EnterName>("Enter the game name");
+                collectionName = await dialog.GetReturnValueAsync<string>();
+                if(collectionName == string.Empty)
+                {
+                    return;
+                }
+            }
+            else
+            {
+                collectionName = _mudSelect.Value;
+            }
+            var response = await _httpClient.PostAsJsonAsync<ImageStorageParam>($"api/imagestorage/collections/{collectionName}", new ImageStorageParam(Image));
+            if(!response.IsSuccessStatusCode)
+            {
+                result = false;
+            }
+        }
+        MudDialog.Close(DialogResult.Ok(result));
+    }
+    void Cancel() => MudDialog.Close(DialogResult.Ok(false));
+
+    private record ImageStorageParam(string Image);
+}
