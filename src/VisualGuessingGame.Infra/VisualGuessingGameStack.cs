@@ -435,6 +435,57 @@ namespace VisualGuessingGame.Infra
                     }
                 });
             #endregion
+
+            #region CFN_OUPUT_API_APPSETTINGS
+            var authorityOutput = new CfnOutput(this, "AuthorityOutput", new CfnOutputProps()
+            {
+                Key = "Authority",
+                Value = userPool.UserPoolProviderUrl
+            });
+
+            var clientIdOutput = new CfnOutput(this, "ClientIdOutput", new CfnOutputProps()
+            {
+                Key = "ClientId",
+                Value = clientApp.UserPoolClientId
+            });
+
+            var cognitoDomainNameOutput = new CfnOutput(this, "CognitoDomainNameOutput", new CfnOutputProps()
+            {
+                Key = "CognitoDomainName",
+                Value = userPoolDomain.DomainName
+            });
+
+            var cognitoRegionOutput = new CfnOutput(this, "CognitoRegionOutput", new CfnOutputProps()
+            {
+                Key = "CognitoRegion",
+                Value = userPool.Env.Region
+            });
+
+            var identityPoolIdOutput = new CfnOutput(this, "IdentityPoolIdOutput", new CfnOutputProps()
+            {
+                Key = "IdentityPoolId",
+                Value = identityPool.IdentityPoolId
+            });
+
+            var imageStorageBucketNameOutput = new CfnOutput(this, "ImageStorageBucketNameOutput", new CfnOutputProps()
+            {
+                Key = "ImageStorageBucketName",
+                Value = imageStorageBucket.BucketName
+            });
+
+            var lanceDBIndexFunctionOutput = new CfnOutput(this, "LanceDBIndexFunctionOutput", new CfnOutputProps()
+            {
+                Key = "LanceDBIndexFunction",
+                Value = lanceDBIndexFunction.FunctionName
+            });
+
+            var lanceDBQueryFunctionOutput = new CfnOutput(this, "LanceDBQueryFunctionOutput", new CfnOutputProps()
+            {
+                Key = "LanceDBQueryFunction",
+                Value = lanceDBQueryFunction.FunctionName
+            });
+            #endregion
+
         }
     }
 }
