@@ -6,6 +6,7 @@
     <!-- Roll forward to future major versions of the netcoreapp as needed -->
     <RollForward>Major</RollForward>
     <LangVersion>12</LangVersion>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,6 +17,11 @@
     <PackageReference Include="Constructs" Version="10.3.0" />
     <PackageReference Include="Amazon.Jsii.Analyzers" Version="*" PrivateAssets="all" />
     <PackageReference Include="DotNext" Version="5.3.1" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.20.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="..\.dockerignore" Link="RustFunctions\.dockerignore" />
   </ItemGroup>
 
 </Project>

@@ -9,6 +9,7 @@ using Amazon.CDK.AWS.Lambda;
 using Amazon.CDK.AWS.S3;
 using Amazon.CDK.AWS.S3.Deployment;
 using Amazon.CDK.CustomResources;
+using CargoLambda.CDK;
 using Constructs;
 using DotNext;
 using System;
@@ -278,34 +279,20 @@ namespace VisualGuessingGame.Infra
                 BlockPublicAccess = BlockPublicAccess.BLOCK_ALL,
             });
 
-            var lanceDBIndexFunction = new LambdaFunction(this, "LanceDBIndexFunction", new LambdaFunctionProps()
+            var lanceDBIndexFunction = new RustFunction(this, "LanceDBIndexFunction", new RustFunctionProps()
             {
-                Runtime = Runtime.PROVIDED_AL2023,
-                Code = Code.FromAsset(Path.Join(Directory.GetCurrentDirectory(), "VisualGuessingGame.LanceDB.Index"),
-                    new AssetOptions()
-                    {
-                        Bundling = new BundlingOptions
-                        {
-                            Image = DockerImage.FromRegistry("ghcr.io/cargo-lambda/cargo-lambda"),
-                            Command = new string[] { "bash", "-c",
-                                string.Join(" && ", new[]
-                                {
-                                    "apt update",
-                                    "apt install -y protobuf-compiler libssl-dev",
-                                    $"cargo lambda build --lambda-dir {AssetStaging.BUNDLING_OUTPUT_DIR} --release --bin visual_guessing_game_lancedb_index --flatten visual_guessing_game_lancedb_index",
-                                })
-                            },
-                            User = "root"
-                        },
-                    }),
-                Handler = "bootstrap",
+                ManifestPath = Path.Join(Directory.GetCurrentDirectory(), "VisualGuessingGame.LanceDB.Index/Cargo.toml"),
+                Runtime = Runtime.PROVIDED_AL2023.ToString(),
                 MemorySize = 1024,
                 Timeout = Duration.Seconds(10),
-                Environment = new Dictionary<string, string>()
+                Bundling = new CargoLambda.CDK.BundlingOptions()
                 {
-                    {"LANCEDB_BUCKET", lanceDBBucket.BucketName}
+                    DockerImage = DockerImage.FromBuild(Path.Join(Directory.GetCurrentDirectory(), "VisualGuessingGame.Infra", "RustFunctions")),
+                    ForcedDockerBundling = true,
+                    Architecture = Architecture.X86_64
                 }
             });
+
             lanceDBIndexFunction.AddToRolePolicy(new PolicyStatement(new PolicyStatementProps()
             {
                 Effect = Effect.ALLOW,
@@ -315,32 +302,18 @@ namespace VisualGuessingGame.Infra
             lanceDBIndexFunction.GrantInvoke(identityPool.AuthenticatedRole);
             lanceDBBucket.GrantReadWrite(lanceDBIndexFunction);
 
-            var lanceDBQueryFunction = new LambdaFunction(this, "LanceDBQueryFunction", new LambdaFunctionProps()
+
+            var lanceDBQueryFunction = new RustFunction(this, "LanceDBQueryFunction", new RustFunctionProps()
             {
-                Runtime = Runtime.PROVIDED_AL2023,
-                Code = Code.FromAsset(Path.Join(Directory.GetCurrentDirectory(), "VisualGuessingGame.LanceDB.Query"),
-                    new AssetOptions()
-                    {
-                        Bundling = new BundlingOptions
-                        {
-                            Image = DockerImage.FromRegistry("ghcr.io/cargo-lambda/cargo-lambda"),
-                            Command = new string[] { "bash", "-c",
-                                string.Join(" && ", new[]
-                                {
-                                    "apt update",
-                                    "apt install -y protobuf-compiler libssl-dev",
-                                    $"cargo lambda build --lambda-dir {AssetStaging.BUNDLING_OUTPUT_DIR} --release --bin visual_guessing_game_lancedb_query --flatten visual_guessing_game_lancedb_query",
-                                })
-                            },
-                            User = "root"
-                        },
-                    }),
-                Handler = "bootstrap",
+                ManifestPath = Path.Join(Directory.GetCurrentDirectory(), "VisualGuessingGame.LanceDB.Query/Cargo.toml"),
+                Runtime = Runtime.PROVIDED_AL2023.ToString(),
                 MemorySize = 1024,
                 Timeout = Duration.Seconds(10),
-                Environment = new Dictionary<string, string>()
+                Bundling = new CargoLambda.CDK.BundlingOptions()
                 {
-                    {"LANCEDB_BUCKET", lanceDBBucket.BucketName}
+                    DockerImage = DockerImage.FromBuild(Path.Join(Directory.GetCurrentDirectory(), "VisualGuessingGame.Infra", "RustFunctions")),
+                    ForcedDockerBundling = true,
+                    Architecture = Architecture.X86_64
                 }
             });
             lanceDBQueryFunction.AddToRolePolicy(new PolicyStatement(new PolicyStatementProps()
@@ -486,6 +459,19 @@ namespace VisualGuessingGame.Infra
             });
             #endregion
 
+        }
+    }
+
+    public class RustCommandHook : CargoLambda.CDK.ICommandHooks
+    {
+        public string[] AfterBundling(string inputDir, string outputDir)
+        {
+            return [];
+        }
+
+        public string[] BeforeBundling(string inputDir, string outputDir)
+        {
+            return ["apt update", "apt install -y protobuf-compiler libssl-dev"];
         }
     }
 }
