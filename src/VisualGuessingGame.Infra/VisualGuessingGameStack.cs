@@ -290,6 +290,10 @@ namespace VisualGuessingGame.Infra
                     DockerImage = DockerImage.FromBuild(Path.Join(Directory.GetCurrentDirectory(), "VisualGuessingGame.Infra", "RustFunctions")),
                     ForcedDockerBundling = true,
                     Architecture = Architecture.X86_64
+                },
+                Environment = new Dictionary<string, string>()
+                {
+                    {"LANCEDB_BUCKET", lanceDBBucket.BucketName}
                 }
             });
 
@@ -314,6 +318,10 @@ namespace VisualGuessingGame.Infra
                     DockerImage = DockerImage.FromBuild(Path.Join(Directory.GetCurrentDirectory(), "VisualGuessingGame.Infra", "RustFunctions")),
                     ForcedDockerBundling = true,
                     Architecture = Architecture.X86_64
+                },
+                Environment = new Dictionary<string, string>()
+                {
+                    {"LANCEDB_BUCKET", lanceDBBucket.BucketName}
                 }
             });
             lanceDBQueryFunction.AddToRolePolicy(new PolicyStatement(new PolicyStatementProps()
