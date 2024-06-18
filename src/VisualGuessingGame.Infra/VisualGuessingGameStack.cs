@@ -14,6 +14,7 @@ using Constructs;
 using DotNext;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -216,10 +217,20 @@ namespace VisualGuessingGame.Infra
             #endregion
 
             #region WEB_API
+
+            string hostArchitecture = "x86_64";
+            Architecture lambdaArchitecture = Architecture.X86_64;
+
+            if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.Arm64)
+            {
+                hostArchitecture = "arm64";
+                lambdaArchitecture = Architecture.ARM_64;
+            }
+
             IEnumerable<string> commands = new[]
             {
                 "dotnet tool install -g Amazon.Lambda.Tools",
-                "dotnet lambda package -o /asset-output/output.zip --msbuild-parameters --self-contained"
+                $"dotnet lambda package -farch {hostArchitecture}  -o /asset-output/output.zip --msbuild-parameters --self-contained"
             };
 
             var webApiFunction = new LambdaFunction(this, "WebAPIFunction", new LambdaFunctionProps()
@@ -236,7 +247,8 @@ namespace VisualGuessingGame.Infra
                     }),
                 Handler = "VisualGuessingGame.API",
                 MemorySize = 2048,
-                Timeout = Duration.Seconds(30)
+                Timeout = Duration.Seconds(30),
+                Architecture = lambdaArchitecture
             });
 
             var webApi = new LambdaRestApi(this, "WebAPI", new LambdaRestApiProps()
