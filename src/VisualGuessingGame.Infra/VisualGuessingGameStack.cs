@@ -9,6 +9,8 @@ using Amazon.CDK.AWS.Lambda;
 using Amazon.CDK.AWS.S3;
 using Amazon.CDK.AWS.S3.Deployment;
 using Amazon.CDK.CustomResources;
+using Amazon.CloudFormation;
+using Amazon.CloudFormation.Model;
 using CargoLambda.CDK;
 using Constructs;
 using DotNext;
@@ -24,6 +26,7 @@ using CloudFrontFunction = Amazon.CDK.AWS.CloudFront.Function;
 using CloudFrontFunctionProps = Amazon.CDK.AWS.CloudFront.FunctionProps;
 using LambdaFunction = Amazon.CDK.AWS.Lambda.Function;
 using LambdaFunctionProps = Amazon.CDK.AWS.Lambda.FunctionProps;
+using Stack = Amazon.CDK.Stack;
 
 namespace VisualGuessingGame.Infra
 {
@@ -117,14 +120,44 @@ namespace VisualGuessingGame.Infra
 
 
             // Don't do use this for real world application! It is a quick way to generate a roughly random password for a demo application!
-            StringBuilder password = new StringBuilder();
-            var random = new Random();
-            password.Append(random.NextString("0123456789", 1));
-            password.Append(random.NextString("abcdefghijklmnopqrstuvwxyz", 1));
-            password.Append(random.NextString("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 1));
-            password.Append(random.NextString("^$*.[]{}()?-\"!@#%&/\\,><':;|_~`+=", 1));
-            password.Append(random.NextString("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ^$*.[]{}()?-\"!@#%&/\\,><':;|_~`+=", 8));
+            bool stackExist = true;
+            string existingPassword = string.Empty;
+            using (AmazonCloudFormationClient cfClient = new AmazonCloudFormationClient())
+            {
+                try
+                {
+                    var describeStacksAsyncTask = cfClient.DescribeStacksAsync(new DescribeStacksRequest()
+                    {
+                        StackName = this.StackName
+                    });
+                    describeStacksAsyncTask.Wait();
+                    var stackDescription = describeStacksAsyncTask.Result;
+                    var cfOutput = stackDescription.Stacks.First().Outputs.Where(x => x.OutputKey == "DemoUserPassword").First();
+                    existingPassword= cfOutput.OutputValue;
+                }
+                catch(AggregateException e)
+                {
+                    if (e.InnerException is AmazonCloudFormationException && (e.InnerException as AmazonCloudFormationException).ErrorCode == "ValidationError")
+                    {
+                        stackExist = false;
+                    }
+                }
+            }
 
+            StringBuilder password = new StringBuilder();
+            if (stackExist)
+            {
+                password.Append(existingPassword);
+            }
+            else
+            {
+                var random = new Random();
+                password.Append(random.NextString("0123456789", 1));
+                password.Append(random.NextString("abcdefghijklmnopqrstuvwxyz", 1));
+                password.Append(random.NextString("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 1));
+                password.Append(random.NextString("^$*.[]{}()?-\"!@#%&/\\,><':;|_~`+=", 1));
+                password.Append(random.NextString("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ^$*.[]{}()?-\"!@#%&/\\,><':;|_~`+=", 8));
+            }
 
             new CfnOutput(this, "DemoUserPassword", new CfnOutputProps()
             {
@@ -132,6 +165,7 @@ namespace VisualGuessingGame.Infra
                 Value = password.ToString()
             });
 
+            // set the password only once at first deployment
             AwsCustomResource acrDemoUserSetPassword = new AwsCustomResource(this, "DemoUserSetPassword",
                 new AwsCustomResourceProps()
                 {

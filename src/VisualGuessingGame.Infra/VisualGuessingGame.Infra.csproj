@@ -13,6 +13,7 @@
     <!-- CDK Construct Library dependencies -->
     <PackageReference Include="Amazon.CDK.AWS.Cognito.IdentityPool.Alpha" Version="2.138.0-alpha.0" />
     <PackageReference Include="Amazon.CDK.Lib" Version="2.138.0" />
+    <PackageReference Include="AWSSDK.CloudFormation" Version="3.7.308.11" />
     <PackageReference Include="CargoLambda.CargoLambdaCDK" Version="0.0.20" />
     <PackageReference Include="Constructs" Version="10.3.0" />
     <PackageReference Include="Amazon.Jsii.Analyzers" Version="*" PrivateAssets="all" />
