@@ -14,10 +14,13 @@
             }
             <MudSelectItem Value="@("Create a new game")"/>
         </MudSelect>
+         <MudOverlay @bind-Visible="_isOverlayVisble" DarkBackground="true">
+            <MudProgressCircular Size="Size.Large" Color="Color.Primary" Indeterminate="true"></MudProgressCircular>
+        </MudOverlay>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">Cancel</MudButton>
-        <MudButton Color="Color.Primary" OnClick="Submit">Add</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Add to game</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -31,6 +34,8 @@
     private IEnumerable<string>? _imageCollections = null;
 
     private HttpClient _httpClient;
+
+    private bool _isOverlayVisble = false;
 
     protected override void OnInitialized()
     {
@@ -69,7 +74,9 @@
             {
                 collectionName = _mudSelect.Value;
             }
+            _isOverlayVisble = true;
             var response = await _httpClient.PostAsJsonAsync<ImageStorageParam>($"api/imagestorage/collections/{collectionName}", new ImageStorageParam(Image));
+            _isOverlayVisble = false;
             if(!response.IsSuccessStatusCode)
             {
                 result = false;
