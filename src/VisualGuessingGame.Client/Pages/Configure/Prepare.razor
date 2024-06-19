@@ -31,7 +31,7 @@ Select an image collection to index in the vector database
             <MudStack Spacing="2" Row="true">
                 <MudCard>
                     <MudCardContent>
-                        <MudImage Height="300" Src="@image.Key.PreSignedUrl"></MudImage>
+                        <MudImage Height="300" Width="300" Src="@image.Key.PreSignedUrl"></MudImage>
                     </MudCardContent>
                     <MudCardActions>
                         <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Description" Color="Color.Info" Class="ml-auto" OnClick="@(e => OnDescribe(image.Key))">Describe</MudButton>
@@ -39,8 +39,20 @@ Select an image collection to index in the vector database
                 </MudCard>
                 <MudPaper Class="d-flex flex-grow-1">
                     <MudStack Class="ma-2 flex-grow-1" Spacing="2">
-                        <MudTextField T="string" Disabled="@(!image.Value.edit)" Variant="Variant.Text" AutoGrow="true" Lines="14" Value="@image.Value.description" />
-                        <MudStack Row="true">
+                        @if (image.Value.description == string.Empty || image.Value.isBeingDescribed)
+                        {
+                            <MudContainer Class="d-flex flex-grow-1 justify-content-center">
+                                @if (image.Value.isBeingDescribed)
+                                {
+                                    <MudProgressCircular Class="align-self-center" Indeterminate="true"></MudProgressCircular>
+                                }
+                            </MudContainer>
+                        }
+                        else
+                        {
+                            <MudTextField T="string" Disabled="@(!image.Value.edit)" Variant="Variant.Text" AutoGrow="true" Value="@image.Value.description" />
+                        }
+                        <MudStack class="mt-top" Row="true">
                             <MudButton Disabled="@(image.Value.description == String.Empty)" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Storage" Color="Color.Info" Class="ml-auto mt-auto" OnClick="@(e => OnEdit(image.Key))">@(image.Value.edit ? "Save description" : "Edit description" )</MudButton>
                             <MudButton Disabled="@(image.Value.description == String.Empty || image.Value.edit)" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Storage" Color="Color.Info" Class="mt-auto" OnClick="@(e => OnIndex(image.Key))">Index description</MudButton>
                         </MudStack>
@@ -62,7 +74,7 @@ Select an image collection to index in the vector database
 
     private IEnumerable<string>? _imageCollections = null;
 
-    private IDictionary<ImagePreSignedUrl, (string description, bool edit)> _images = new Dictionary<ImagePreSignedUrl, (string description, bool edit)>();
+    private IDictionary<ImagePreSignedUrl, (string description, bool edit, bool isBeingDescribed)> _images = new Dictionary<ImagePreSignedUrl, (string description, bool edit, bool isBeingDescribed)>();
 
     private HttpClient? _httpClient;
 
@@ -98,8 +110,9 @@ Select an image collection to index in the vector database
     {
         if (_httpClient is not null)
         {
+            _images[imagePresignedUrl] = (_images[imagePresignedUrl].description, false, true);
             var imageDescription = await _httpClient.GetStringAsync($"api/imagedescription/{imagePresignedUrl.CollectionName}/{imagePresignedUrl.ImageName}");
-            _images[imagePresignedUrl] = (imageDescription, false);
+            _images[imagePresignedUrl] = (imageDescription, false, false);
         }
     }
     private async Task OnIndex(ImagePreSignedUrl imagePresignedUrl)
@@ -112,7 +125,7 @@ Select an image collection to index in the vector database
 
     private void OnEdit(ImagePreSignedUrl imagePresignedUrl)
     {
-        _images[imagePresignedUrl] = (_images[imagePresignedUrl].description, !_images[imagePresignedUrl].edit);
+        _images[imagePresignedUrl] = (_images[imagePresignedUrl].description, !_images[imagePresignedUrl].edit, _images[imagePresignedUrl].isBeingDescribed);
     }
 
 
@@ -127,7 +140,7 @@ Select an image collection to index in the vector database
             {
                 foreach (var imagePresignedUrl in imagePreSignedUrls)
                 {
-                    _images.Add(imagePresignedUrl, (string.Empty, false));
+                    _images.Add(imagePresignedUrl, (string.Empty, false, false));
                 }
             }
         }
