@@ -38,7 +38,7 @@ To access the Play part, you also have first to log in. Once done, you can selec
 
 ### Authentication
 
-The application uses Amazon Cognito as an identity provider. When you use the CDK application to deploy the infrastructure, a default DemoUser is automatically created with a pseudo random password. You can also add new users directly through the Amazon Cognito administration console.
+The application uses Amazon Cognito as an identity provider. When you use the CDK application to deploy the infrastructure, a default DemoUser is automatically created with a pseudo random password. You can get the generated password in the outputs of your CloudFormation stack. You can also add new users directly through the Amazon Cognito administration console.
 
 ## Prerequisites
 
@@ -77,7 +77,19 @@ cdk deploy
 
 Once the CDK app is deployed, write down the following outputs:
 - **WebClientUrl:** Use this url to navigate to the application
-- **DemoUserPassword:** Write down this password. You won't be able to reset the password as no email address are linked to the user.
+- **DemoUserPassword:** Write down this password. You won't be able to reset the password as no email address are linked to the user. You can also get the password from the outputs of the CloudFormation stack in the CloudFormation console.
+
+To configure the backend API, you also need to write down the following outputs that are described [here](#configuring-the-backend-api-appsettings-to-run-locally):
+- **Authority**
+- **ClientId**
+- **CognitoDomainName**
+- **CognitoRegion**
+- **IdentityPoolId**
+- **ImageStorageBucketName**
+- **LanceDBIndexFunction**
+- **LanceDBQueryFunction**
+
+If you didn't write then down, you can find them in the outputs of the CloudFormation stack in the CloudFormation console.
 
 **!!Warning!!** You really need to write down the password as the displayed value is correct only at first deployment. If you don't write it down or you forget it, you will have to create a new user through the Amazon Cognito console.
 
