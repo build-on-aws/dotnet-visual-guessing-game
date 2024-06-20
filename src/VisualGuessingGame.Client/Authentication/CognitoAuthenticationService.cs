@@ -17,6 +17,7 @@ public class CognitoAuthenticationService : AuthenticationStateProvider, IAccess
     private JwtSecurityToken? _accessToken = null;
     private string? _rawIdToken = null;
     private JwtSecurityToken? _idToken = null;
+    private string? _rawRefreshToken = null;
     private JwtSecurityToken? _refreshToken = null;
     private DateTimeOffset? _expiration = null;
 
@@ -40,12 +41,34 @@ public class CognitoAuthenticationService : AuthenticationStateProvider, IAccess
     {
         if (_idToken is null)
         {
-            return new ClaimsPrincipal();
+            await RetrieveTokensFromStorage();
+            if (_idToken is null)
+            {
+                return new ClaimsPrincipal();
+            }
         }
 
         var identity = new ClaimsIdentity("Federation", "email", null);
         identity.AddClaims(_idToken.Claims);
         return new ClaimsPrincipal(identity);
+    }
+
+    private async Task RetrieveTokensFromStorage()
+    {
+        try
+        {
+            _rawIdToken = await _sessionStorageService.GetItemAsStringAsync("id_token");
+            _rawAccessToken = await _sessionStorageService.GetItemAsStringAsync("access_token");
+            _rawRefreshToken = await _sessionStorageService.GetItemAsStringAsync("refresh_token");
+            _expiration = await _sessionStorageService.GetItemAsync<DateTimeOffset?>("expiration");
+            ParseTokens();
+        }
+        catch
+        {
+            _rawIdToken = null;
+            _rawAccessToken = null;
+            _rawRefreshToken = null;
+        }
     }
 
     public async Task ProcessLogIn()
@@ -73,11 +96,12 @@ public class CognitoAuthenticationService : AuthenticationStateProvider, IAccess
             throw new Exception($"{nameof(cognitoTokenResponse)} is null");
 
         _rawAccessToken = cognitoTokenResponse.AccessToken;
-        _accessToken = new JwtSecurityToken(cognitoTokenResponse.AccessToken);
         _rawIdToken = cognitoTokenResponse.IdToken;
-        _idToken = new JwtSecurityToken(cognitoTokenResponse.IdToken);
-        _refreshToken = new JwtSecurityToken(cognitoTokenResponse.RefreshToken);
+        _rawRefreshToken = cognitoTokenResponse.RefreshToken;
         _expiration = DateTimeOffset.Now.AddSeconds(cognitoTokenResponse.ExpiresIn);
+
+        await StoreTokens();
+        ParseTokens();
 
         await UpdateUserOnSuccess();
 
@@ -87,6 +111,21 @@ public class CognitoAuthenticationService : AuthenticationStateProvider, IAccess
             await _sessionStorageService.RemoveItemAsync("returnUrl");
             _navigation.NavigateTo(cachedUrl);
         }
+    }
+
+    private void ParseTokens()
+    {
+        _idToken = _rawIdToken is not null ? new JwtSecurityToken(_rawIdToken) : null;
+        _accessToken = _rawAccessToken is not null ? new JwtSecurityToken(_rawAccessToken) : null;
+        _refreshToken = _rawRefreshToken is not null ? new JwtSecurityToken(_rawRefreshToken) : null;
+    }
+
+    private async Task StoreTokens()
+    {
+        await _sessionStorageService.SetItemAsStringAsync("id_token", _rawIdToken);
+        await _sessionStorageService.SetItemAsStringAsync("access_token", _rawAccessToken);
+        await _sessionStorageService.SetItemAsStringAsync("refresh_token", _rawRefreshToken);
+        await _sessionStorageService.SetItemAsync<DateTimeOffset?>("expiration", _expiration);
     }
 
     public void ProcessLogOut()
