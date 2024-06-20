@@ -25,12 +25,12 @@
             @if (_top1PresignedUrl is null)
             {
                 <MudText Align="Align.Center" Typo="Typo.h6">The AI is guessing</MudText>
-                <MudSkeleton Height="512px" Width="512px" Fluid="true" ObjectFit="ObjectFit.Contain" SkeletonType="SkeletonType.Rectangle" />
+                <MudSkeleton Height="512px" Width="512px" SkeletonType="SkeletonType.Rectangle" />
             }
             else if(!_tryAgain)
             {
                 <MudText Align="Align.Center" Typo="Typo.h6">The AI's guess</MudText>
-                <MudImage Src="@_top1PresignedUrl.PreSignedUrl" Height="512" Elevation="2" />
+                <MudImage Src="@_top1PresignedUrl.PreSignedUrl" Height="512" Width="512" Fluid="true" ObjectFit="ObjectFit.Contain" Elevation="2" />
             }
             else if(_top2PresignedUrl is null)
             {
@@ -40,7 +40,7 @@
             else
             {
                 <MudText Align="Align.Center" Typo="Typo.h6">Here is the AI's guess at second try</MudText>
-                <MudImage Src="@_top2PresignedUrl.PreSignedUrl" Height="512" Elevation="2" />
+                <MudImage Src="@_top2PresignedUrl.PreSignedUrl" Height="512" Width="512" Fluid="true" ObjectFit="ObjectFit.Contain" Elevation="2" />
             }
         </MudStack>
     </MudStack>
