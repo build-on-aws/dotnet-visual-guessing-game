@@ -31,7 +31,7 @@ Select an image collection to index in the vector database
             <MudStack Spacing="2" Row="true">
                 <MudCard>
                     <MudCardContent>
-                        <MudImage Height="300" Width="300" Src="@image.Key.PreSignedUrl"></MudImage>
+                        <MudImage Height="300" Width="300" Fluid="true" ObjectFit="ObjectFit.Contain" Src="@image.Key.PreSignedUrl"></MudImage>
                     </MudCardContent>
                     <MudCardActions>
                         <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Description" Color="Color.Info" Class="ml-auto" OnClick="@(e => OnDescribe(image.Key))">Describe</MudButton>

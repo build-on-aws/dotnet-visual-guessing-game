@@ -17,7 +17,7 @@
 }
 
 <MudStack Row="true" Spacing="8" Style="width:80dvw">
-    <MudImage Src="@PresignedUrl" Height="512" Elevation="2"/>
+    <MudImage Src="@PresignedUrl" Height="512" Width="512" Fluid="true" ObjectFit="ObjectFit.Contain" Elevation="2" />
     <MudPaper Class="d-flex flex-grow-1">
         <MudStack Spacing="2" Class="pa-2 flex-grow-1">
             <MudTextField FullWidth="true" Immediate="true" Counter=0 Label="Describe the image" @bind-Value="_prompt" Lines=5 AutoGrow="true" Variant="Variant.Outlined" />

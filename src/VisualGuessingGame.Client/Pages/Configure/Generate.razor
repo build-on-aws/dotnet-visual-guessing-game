@@ -37,7 +37,7 @@
                 <MudItem>
                     <MudCard>
                         <MudCardContent>
-                            <MudImage Src="@($"data:image/jpeg;base64,{image}")"></MudImage>
+                        <MudImage Height="300" Width="300" Fluid="true" ObjectFit="ObjectFit.Contain" Src="@($"data:image/jpeg;base64,{image}")"></MudImage>
                         </MudCardContent>
                         <MudCardActions>
                             <MudButton id="@($"save-button-{j}")" Disabled="@_saveButtonStates[$"save-button-{j}"]" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Info" Class="ml-auto" OnClick="@(e => OnSave(image, j))">@_saveButtonLabels[$"save-button-{j}"]</MudButton>

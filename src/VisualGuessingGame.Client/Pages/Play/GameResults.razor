@@ -19,13 +19,13 @@
     <MudStack Row="true" Spacing="8" >
         <MudStack>
             <MudText Align="Align.Center" Typo="Typo.h6">Your image</MudText>
-            <MudImage Src="@PresignedUrl" Height="512" Elevation="2"/>
+            <MudImage Src="@PresignedUrl" Height="512" Width="512" Elevation="2"/>
         </MudStack>
         <MudStack>
             @if (_top1PresignedUrl is null)
             {
                 <MudText Align="Align.Center" Typo="Typo.h6">The AI is guessing</MudText>
-                <MudSkeleton Height="512px" Width="512px" SkeletonType="SkeletonType.Rectangle"/>
+                <MudSkeleton Height="512px" Width="512px" Fluid="true" ObjectFit="ObjectFit.Contain" SkeletonType="SkeletonType.Rectangle" />
             }
             else if(!_tryAgain)
             {
