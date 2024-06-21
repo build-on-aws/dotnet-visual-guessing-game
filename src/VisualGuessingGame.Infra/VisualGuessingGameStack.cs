@@ -65,7 +65,6 @@ namespace VisualGuessingGame.Infra
             
             IEnumerable<string> webClientPublishCommands = new[]
             {
-                //"dotnet workload install wasm-tools",
                 "dotnet publish -c Release",
                 "cp -t /asset-output -R ./bin/Release/net8.0/publish/wwwroot/*"
             };
