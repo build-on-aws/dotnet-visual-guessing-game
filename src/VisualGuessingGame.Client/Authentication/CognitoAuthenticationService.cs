@@ -2,11 +2,13 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 using System.Web;
 using Blazored.SessionStorage;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 
 namespace VisualGuessingGame.Client.Authentication;
@@ -18,7 +20,6 @@ public class CognitoAuthenticationService : AuthenticationStateProvider, IAccess
     private string? _rawIdToken = null;
     private JwtSecurityToken? _idToken = null;
     private string? _rawRefreshToken = null;
-    private JwtSecurityToken? _refreshToken = null;
     private DateTimeOffset? _expiration = null;
 
     private readonly IConfiguration _configuration;
@@ -34,9 +35,62 @@ public class CognitoAuthenticationService : AuthenticationStateProvider, IAccess
         _navigation = navigation;
         _httpClient = httpClient;
     }
-    
-    public override async Task<AuthenticationState> GetAuthenticationStateAsync() => new AuthenticationState(await GetUser());
 
+    #region AuthenticationStateProvider implementation
+    public override async Task<AuthenticationState> GetAuthenticationStateAsync() => new AuthenticationState(await GetUser());
+    #endregion
+
+    #region IAccessTokenProvider implementation
+    public async ValueTask<AccessTokenResult> RequestAccessToken()
+    {
+        await GetTokens(true);
+        if (_idToken is null)
+        {
+            return new AccessTokenResult(AccessTokenResultStatus.RequiresRedirect, new AccessToken(), null, null);
+        }
+        else
+        {
+            var claim = _idToken.Claims.FirstOrDefault(x => x.Type == "scope");
+            return new AccessTokenResult(AccessTokenResultStatus.Success, new AccessToken() { Expires = _expiration!.Value, Value = _rawIdToken!, GrantedScopes = claim is null ? new List<string>() : claim.Value.Split() }, null, null);
+        }
+    }
+
+    public ValueTask<AccessTokenResult> RequestAccessToken(AccessTokenRequestOptions options)
+    {
+        return RequestAccessToken();
+    }
+    #endregion
+
+    #region hostedUI callback processing
+    public async Task ProcessLogIn()
+    {
+        var returnUrl = _navigation.HistoryEntryState is not null ? JsonSerializer.Deserialize<InteractiveRequestOptions>(_navigation.HistoryEntryState)?.ReturnUrl : null;
+        await _sessionStorageService.SetItemAsync("returnUrl", returnUrl);
+        _navigation.NavigateTo($"https://{_configuration["CognitoDomainName"]}.auth.{_configuration["CognitoRegion"]}.amazoncognito.com/login?response_type=code&client_id={_configuration["ClientId"]}&redirect_uri={_navigation.BaseUri.TrimEnd('/')}&scope=openid+profile");
+    }
+
+    public async Task ProcessLogInCallback()
+    {
+        await GetTokens();
+
+        await UpdateUserOnSuccess();
+
+        var cachedUrl = await _sessionStorageService.GetItemAsync<string>("returnUrl");
+        if (cachedUrl is not null)
+        {
+            await _sessionStorageService.RemoveItemAsync("returnUrl");
+            _navigation.NavigateTo(cachedUrl);
+        }
+    }
+
+    public void ProcessLogOut()
+    {
+        var returnUrl = _navigation.HistoryEntryState is not null ? JsonSerializer.Deserialize<InteractiveRequestOptions>(_navigation.HistoryEntryState)?.ReturnUrl : null;
+        _navigation.NavigateTo($"https://{_configuration["CognitoDomainName"]}.auth.{_configuration["CognitoRegion"]}.amazoncognito.com/logout?client_id={_configuration["ClientId"]}&logout_uri={_navigation.BaseUri.TrimEnd('/')}");
+    }
+    #endregion
+
+    #region ClaimsPrincipal management
     private async Task<ClaimsPrincipal> GetUser()
     {
         if (_idToken is null)
@@ -53,6 +107,23 @@ public class CognitoAuthenticationService : AuthenticationStateProvider, IAccess
         return new ClaimsPrincipal(identity);
     }
 
+    private async Task UpdateUserOnSuccess()
+    {
+        var getUserTask = GetUser();
+        await getUserTask;
+        UpdateUser(getUserTask);
+    }
+
+    private void UpdateUser(Task<ClaimsPrincipal> task)
+    {
+        NotifyAuthenticationStateChanged(UpdateAuthenticationState(task));
+        return;
+
+        static async Task<AuthenticationState> UpdateAuthenticationState(Task<ClaimsPrincipal> futureUser) => new AuthenticationState(await futureUser);
+    }
+    #endregion
+
+    #region token management
     private async Task RetrieveTokensFromStorage()
     {
         try
@@ -71,53 +142,10 @@ public class CognitoAuthenticationService : AuthenticationStateProvider, IAccess
         }
     }
 
-    public async Task ProcessLogIn()
-    {
-        var returnUrl = _navigation.HistoryEntryState is not null ? JsonSerializer.Deserialize<InteractiveRequestOptions>(_navigation.HistoryEntryState)?.ReturnUrl : null;
-        await _sessionStorageService.SetItemAsync("returnUrl", returnUrl);
-        _navigation.NavigateTo($"https://{_configuration["CognitoDomainName"]}.auth.{_configuration["CognitoRegion"]}.amazoncognito.com/login?response_type=code&client_id={_configuration["ClientId"]}&redirect_uri={_navigation.BaseUri.TrimEnd('/')}&scope=openid+profile");
-    }
-
-    public async Task ProcessLogInCallback()
-    {
-        var queryStringParams = HttpUtility.ParseQueryString(new Uri(_navigation.Uri).Query);
-        var tokenRequest = new StringContent(
-            $"grant_type=authorization_code&client_id={_configuration["ClientId"]}&code={queryStringParams["code"]}&redirect_uri={_navigation.BaseUri.TrimEnd('/')}",
-            MediaTypeHeaderValue.Parse("application/x-www-form-urlencoded"));
-        var tokenResponse = await _httpClient.PostAsync($"https://{_configuration["CognitoDomainName"]}.auth.{_configuration["CognitoRegion"]}.amazoncognito.com/oauth2/token", tokenRequest);
-
-        if (tokenResponse.StatusCode != HttpStatusCode.OK)
-            throw new Exception($"{nameof(tokenResponse.StatusCode)} should be 200 OK");
-
-        var cognitoTokenResponse =
-            await JsonSerializer.DeserializeAsync<CognitoTokenResponse>(await tokenResponse.Content.ReadAsStreamAsync());
-
-        if(cognitoTokenResponse is null)
-            throw new Exception($"{nameof(cognitoTokenResponse)} is null");
-
-        _rawAccessToken = cognitoTokenResponse.AccessToken;
-        _rawIdToken = cognitoTokenResponse.IdToken;
-        _rawRefreshToken = cognitoTokenResponse.RefreshToken;
-        _expiration = DateTimeOffset.Now.AddSeconds(cognitoTokenResponse.ExpiresIn);
-
-        await StoreTokens();
-        ParseTokens();
-
-        await UpdateUserOnSuccess();
-
-        var cachedUrl = await _sessionStorageService.GetItemAsync<string>("returnUrl");
-        if (cachedUrl is not null)
-        {
-            await _sessionStorageService.RemoveItemAsync("returnUrl");
-            _navigation.NavigateTo(cachedUrl);
-        }
-    }
-
     private void ParseTokens()
     {
         _idToken = _rawIdToken is not null ? new JwtSecurityToken(_rawIdToken) : null;
         _accessToken = _rawAccessToken is not null ? new JwtSecurityToken(_rawAccessToken) : null;
-        _refreshToken = _rawRefreshToken is not null ? new JwtSecurityToken(_rawRefreshToken) : null;
     }
 
     private async Task StoreTokens()
@@ -128,38 +156,61 @@ public class CognitoAuthenticationService : AuthenticationStateProvider, IAccess
         await _sessionStorageService.SetItemAsync<DateTimeOffset?>("expiration", _expiration);
     }
 
-    public void ProcessLogOut()
+    private HttpRequestMessage BuildTokenRequest(bool refresh = false)
     {
-        var returnUrl = _navigation.HistoryEntryState is not null ? JsonSerializer.Deserialize<InteractiveRequestOptions>(_navigation.HistoryEntryState)?.ReturnUrl : null;
-        _navigation.NavigateTo($"https://{_configuration["CognitoDomainName"]}.auth.{_configuration["CognitoRegion"]}.amazoncognito.com/logout?client_id={_configuration["ClientId"]}&logout_uri={_navigation.BaseUri.TrimEnd('/')}");
+        var queryStringParams = HttpUtility.ParseQueryString(new Uri(_navigation.Uri).Query);
+        
+        HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"https://{_configuration["CognitoDomainName"]}.auth.{_configuration["CognitoRegion"]}.amazoncognito.com/oauth2/token");
+        request.Content = new StringContent($"grant_type={(refresh ? "refresh_token" : "authorization_code")}&client_id={_configuration["ClientId"]}&{(refresh ? $"refresh_token={_rawRefreshToken}" : $"code={queryStringParams["code"]}&redirect_uri={_navigation.BaseUri.TrimEnd('/')}")}", MediaTypeHeaderValue.Parse("application/x-www-form-urlencoded"));
+       
+        return request;
     }
 
-    private async Task UpdateUserOnSuccess()
+    private async Task GetTokens(bool refresh = false)
     {
-        var getUserTask = GetUser();
-        await getUserTask;
-        UpdateUser(getUserTask);
+        if (!refresh || (refresh && _rawRefreshToken != null && _expiration != null && ((_expiration - DateTimeOffset.Now)?.TotalSeconds < 600)))
+        {
+            var tokenResponse = await _httpClient.SendAsync(BuildTokenRequest(refresh));
+
+            if (tokenResponse.StatusCode == HttpStatusCode.OK)
+            {
+
+                var cognitoTokenResponse =
+                    await JsonSerializer.DeserializeAsync<CognitoTokenResponse>(await tokenResponse.Content.ReadAsStreamAsync());
+
+                if (cognitoTokenResponse is null)
+                    throw new Exception($"{nameof(cognitoTokenResponse)} is null");
+
+                _rawAccessToken = cognitoTokenResponse.AccessToken;
+                _rawIdToken = cognitoTokenResponse.IdToken;
+                if (cognitoTokenResponse.RefreshToken is not null)
+                {
+                    _rawRefreshToken = cognitoTokenResponse.RefreshToken;
+                }
+                _expiration = DateTimeOffset.Now.AddSeconds(cognitoTokenResponse.ExpiresIn);
+
+                await StoreTokens();
+                ParseTokens();
+            }
+            else
+            {
+                await ClearTokens();
+            }
+        }
     }
 
-    private void UpdateUser(Task<ClaimsPrincipal> task)
+    private async Task ClearTokens()
     {
-        NotifyAuthenticationStateChanged(UpdateAuthenticationState(task));
-        return;
-        
-        static async Task<AuthenticationState> UpdateAuthenticationState(Task<ClaimsPrincipal> futureUser) => new AuthenticationState(await futureUser);
+        _rawAccessToken = null;
+        _rawIdToken = null;
+        _rawRefreshToken = null;
+        _idToken = null;
+        _accessToken = null;
+        _expiration = null;
+        await _sessionStorageService.RemoveItemAsync("id_token");
+        await _sessionStorageService.RemoveItemAsync("access_token");
+        await _sessionStorageService.RemoveItemAsync("refresh_token");
+        await _sessionStorageService.RemoveItemAsync("expiration");
     }
-
-    public ValueTask<AccessTokenResult> RequestAccessToken()
-    {
-        if(_idToken is null) return ValueTask.FromResult(new AccessTokenResult(AccessTokenResultStatus.RequiresRedirect, new AccessToken(), null, null));
-        
-        var claim = _idToken.Claims.FirstOrDefault(x => x.Type == "scope");
-        
-        return ValueTask.FromResult(new AccessTokenResult(AccessTokenResultStatus.Success, new AccessToken() { Expires = _expiration!.Value, Value = _rawIdToken!, GrantedScopes = claim is null ? new List<string>() : claim.Value.Split()}, null, null));
-    }
-    
-    public ValueTask<AccessTokenResult> RequestAccessToken(AccessTokenRequestOptions options)
-    {
-        return RequestAccessToken();
-    }
+    #endregion
 }
