@@ -14,7 +14,7 @@ namespace VisualGuessingGame.API
     {
         public static void RegisterImageQueryEndpoints(this WebApplication app)
         {
-            app.MapPost("api/imagequery/{collectionName}", PostImageQueryRequest);    
+            app.MapPost("api/imagequery/{collectionName}", PostImageQueryRequest).RequireAuthorization();    
         }
 
         private static async Task<IResult> PostImageQueryRequest(IConfiguration configuration, HttpContext context, string collectionName)

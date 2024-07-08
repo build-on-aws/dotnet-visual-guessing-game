@@ -18,7 +18,7 @@ namespace VisualGuessingGame.API
     {
         public static void RegisterImageGenerationEndpoints(this WebApplication app)
         {
-            app.MapPost("api/imagegen", PostImageGenerationRequest);
+            app.MapPost("api/imagegen", PostImageGenerationRequest).RequireAuthorization();
         }
 
         private static async Task<IResult> PostImageGenerationRequest(IConfiguration configuration, HttpContext context, [FromBody] ImageGenParam param)
