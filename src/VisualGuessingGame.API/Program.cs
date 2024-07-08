@@ -45,7 +45,6 @@ if (app.Environment.IsDevelopment())
         .AllowCredentials());
 }
 
-//app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
