@@ -3,7 +3,9 @@
 
 <MudStack Spacing="2">
     <MudText Typo="Typo.h6">You need to be logged in to use this application. Please logged in by clicking on the below button.</MudText>
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="BeginLogIn">Log in</MudButton>
+    <MudContainer Class="d-flex justify-content-center">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="BeginLogIn">Log in</MudButton>
+    </MudContainer>
 </MudStack>
 
 @code {
