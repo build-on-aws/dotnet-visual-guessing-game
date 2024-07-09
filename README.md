@@ -159,8 +159,30 @@ Open a browser and navigate to the following URL:
 https://localhost:7215
 ```
 
+## Debugging locally
+
+You can leverage JetBrains Rider or Visual Studio 2022 debuggers to debug locally the backend API or the frontent web application. 
 
 ## Architecture
+
+The Visual Guessing Game application uses the following AWS resources:
+
+- an Amazon S3 bucket to store the static assets of the single page application
+- an Amazon CloudFront distribution to service the single page application assets
+- an Amazon Cognito User Pool and Identity Pool to manage users and to provide temporary credentials to those users for accessing AWS services
+- an Amazon API Gateway to host the endpoint that triggers the main AWS Lambda function
+- an Amazon Lamdbda function to host the ASP.NET Core minimal API compiled with Native AOT
+- the Amazon Titan Image Generator foundation model served by Amazon Bedrock to generate images
+- a second Amazon S3 bucket to store generated images
+- the Anthropic Claude 3 Sonnet foundation model server by Amazon to describe images
+- the Cohere Embed Multilingual model to transform the image description into embeddings
+- a second AWS Lambda function to serve the LanceDB indexation endpoint
+- a third AWS Lambda function to serve the LanceDB query endpoint
+- a third Amazon S3 bucket to store LanceDB databases
+
+The diagram below details how those resources interact together.
+
+![Visual Guessing Game architecture diagram](./docs/architecture.png)
 
 ## Contributions
 
