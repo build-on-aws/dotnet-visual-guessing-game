@@ -14,7 +14,7 @@ namespace VisualGuessingGame.API
     {
         public static void RegisterImageIndexationEndpoints(this WebApplication app)
         {
-            app.MapPost("api/imageindexation/{collectionName}/{imageKey}", PostImageIndexationRequest);    
+            app.MapPost("api/imageindexation/{collectionName}/{imageKey}", PostImageIndexationRequest).RequireAuthorization();
         }
 
         private static async Task<IResult> PostImageIndexationRequest(IConfiguration configuration, HttpContext context, string collectionName, string imageKey)

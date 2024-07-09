@@ -21,10 +21,10 @@ namespace VisualGuessingGame.API
     {
         public static void RegisterImageStorageEndpoints(this WebApplication app)
         {
-            app.MapGet("api/imagestorage/collections", GetImageStorageCollectionsRequest);
-            app.MapPost("api/imagestorage/collections/{collectionName}", PostImageStorageCollectionsRequest);
-            app.MapGet("api/imagestorage/collections/{collectionName}", GetImagesPresignedUrlsRequest);
-            app.MapGet("api/imagestorage/collections/{collectionName}/{imageName}", GetImagePresignedUrlRequest);
+            app.MapGet("api/imagestorage/collections", GetImageStorageCollectionsRequest).RequireAuthorization();
+            app.MapPost("api/imagestorage/collections/{collectionName}", PostImageStorageCollectionsRequest).RequireAuthorization();
+            app.MapGet("api/imagestorage/collections/{collectionName}", GetImagesPresignedUrlsRequest).RequireAuthorization();
+            app.MapGet("api/imagestorage/collections/{collectionName}/{imageName}", GetImagePresignedUrlRequest).RequireAuthorization();
         }
 
         private static async Task<IResult> GetImagePresignedUrlRequest(IConfiguration configuration, HttpContext context, string collectionName, string imageName)

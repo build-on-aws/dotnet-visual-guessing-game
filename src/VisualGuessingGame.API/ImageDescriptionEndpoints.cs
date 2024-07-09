@@ -25,7 +25,7 @@ namespace VisualGuessingGame.API
     {
         public static void RegisterImageDescriptionEndpoints(this WebApplication app)
         {
-            app.MapGet("api/imagedescription/{collectionName}/{imageKey}", GetImageDescriptionRequest);    
+            app.MapGet("api/imagedescription/{collectionName}/{imageKey}", GetImageDescriptionRequest).RequireAuthorization();    
         }
 
         private static async Task<IResult> GetImageDescriptionRequest(IConfiguration configuration, HttpContext context, string collectionName, string imageKey)
