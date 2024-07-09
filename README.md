@@ -184,6 +184,20 @@ https://localhost:7215
 
 You can leverage JetBrains Rider or Visual Studio 2022 debuggers to debug locally the backend API or the frontent web application. 
 
+## Related presentations
+
+In the [presentations folder](https://github.com/build-on-aws/dotnet-visual-guessing-game/tree/main/presentations) of this repository, you can find a presentation deck titled *How to build a cloud native application with .NET and AWS*. This presentation relies on the code of this repository. 
+
+It involves a live coding part where you want to build a background task that is triggered when an image is stored in the S3 bucket. The background task automatically invokes Anthropic Claude 3 Sonnet to describe the picture. 
+Then it invokes Cohere Embed Multilingual to turn the description into embeddings. Finally, it calls LanceDB indexation endpoints to index the image in the vector database.
+
+The [presentation branch](https://github.com/build-on-aws/dotnet-visual-guessing-game/tree/presentation) provides the final state of the live coding.
+
+During the live coding, you have to manually create an Amazon SQS queue, configure the S3 bucket storing the image to notify your queue when an object is created. Then you upload your newly created AWS Lambda function and you configure your Amazon SQS queue as its trigger.
+
+You can leverage the two Visual Studio code snippets ([[1]](https://github.com/build-on-aws/dotnet-visual-guessing-game/blob/main/presentations/vgg.snippet) & [[2]](https://github.com/build-on-aws/dotnet-visual-guessing-game/blob/main/presentations/vggrecord.snippet))provided in the presentation folder to accelerate the live coding part.
+
+
 ## Contributions
 
 See [CONTRIBUTING](CONTRIBUTING.md) for more information.
