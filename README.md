@@ -64,12 +64,12 @@ The diagram below details how those resources interact together.
 ## Prerequisites
 
 To build and deploy this .NET application, you need to install the following prerequisites on your development machine:
-- Git
-- .NET 8 SDK and the dotnet CLI
-- Rust and Cargo
-- Node.js and NPM (for AWS CDK)
-- AWS CDK CLI
-- Docker
+- [Git](https://git-scm.com/downloads)
+- [.NET 8 SDK and the dotnet CLI](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+- [Rust and Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
+- [Node.js and NPM (for AWS CDK)](https://nodejs.org/en/download/package-manager)
+- [AWS CDK CLI](https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html)
+- [Docker](https://www.docker.com/products/docker-desktop/)
 
 ## Deployment
 
