@@ -125,9 +125,39 @@ Here are the properties you need to set:
 - **LanceDBIndexFunction:** the ARN of the Lambda function executing LanceDB indexation request
 - **LanceDBQueryFunction:** the ARN of the Lambda function executing LanceDB query request
 
-## Running the backend API locally
+## Run the backend API locally
 
-## Running the frontend web application locally
+Open a terminal and set your current directory to:
+
+```
+src/VisualGuessingGame.API
+```
+
+Run the following command:
+
+```bash
+dotnet run .\VisualGuessingGame.API.csproj
+```
+
+## Run the frontend web application locally
+
+```
+src/VisualGuessingGame.Client
+```
+
+Run the following command:
+
+```bash
+dotnet run .\VisualGuessingGame.Client.csproj
+```
+
+## Navigate to the application locally
+
+Open a browser and navigate to the following URL:
+
+```
+src/VisualGuessingGame.API
+```
 
 
 ## Architecture
@@ -142,5 +172,5 @@ See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more inform
 
 ## License
 
-This library is licensed under the MIT-0 License. See the LICENSE file.
+This project is licensed under the MIT-0 License. See the LICENSE file.
 
