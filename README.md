@@ -28,6 +28,8 @@ Once you've logged in, you can select *Configure* to navigate to the Configure p
 
 Behind the scenes, the application turns descriptions into embeddings thanks to *Cohere Embed Multilingual* to index them in the vector database. It does the same when to query the vector database with your descriptions to retrieve the top-2 closest indexed description. They will serve as AI agent's guesses.
 
+https://github.com/build-on-aws/dotnet-visual-guessing-game/assets/10872124/a65f1a31-3951-45da-b7ca-b5304b84296b
+
 ### Play
 
 To access the Play part, you also have to first log in. Once done, you can select *Play* to start a game. You then go through four different screens:
@@ -35,6 +37,8 @@ To access the Play part, you also have to first log in. Once done, you can selec
 1. **Pick image:** You pick one image among the set of images of the game.
 1. **Describe:** You provide a textual description of the image you've selected.
 1. **AI guessing:** The AI agent tries to guess your image. If it doesn't get it right on the first try, you can give it a second chance or restart the game. If on the second try, it is still wrong, you can provide a different description or restart a game.
+
+https://github.com/build-on-aws/dotnet-visual-guessing-game/assets/10872124/f343c62f-f4b2-44ce-ad06-351dfd5ea166
 
 ### Authentication
 
