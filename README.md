@@ -156,7 +156,7 @@ dotnet run .\VisualGuessingGame.Client.csproj
 Open a browser and navigate to the following URL:
 
 ```
-src/VisualGuessingGame.API
+https://localhost:7215
 ```
 
 
