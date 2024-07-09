@@ -40,6 +40,27 @@ To access the Play part, you also have to first log in. Once done, you can selec
 
 The application uses Amazon Cognito as an identity provider. When you use the CDK application to deploy the infrastructure, a default DemoUser is automatically created with a pseudo-random password. You can get the generated password in the outputs of your CloudFormation stack. You can also add new users directly through the Amazon Cognito administration console.
 
+## Architecture
+
+The Visual Guessing Game application uses the following AWS resources:
+
+- an Amazon S3 bucket to store the static assets of the single page application
+- an Amazon CloudFront distribution to service the single page application assets
+- an Amazon Cognito User Pool and Identity Pool to manage users and to provide temporary credentials to those users for accessing AWS services
+- an Amazon API Gateway to host the endpoint that triggers the main AWS Lambda function
+- an Amazon Lamdbda function to host the ASP.NET Core minimal API compiled with Native AOT
+- the Amazon Titan Image Generator foundation model served by Amazon Bedrock to generate images
+- a second Amazon S3 bucket to store generated images
+- the Anthropic Claude 3 Sonnet foundation model server by Amazon to describe images
+- the Cohere Embed Multilingual model to transform the image description into embeddings
+- a second AWS Lambda function to serve the LanceDB indexation endpoint
+- a third AWS Lambda function to serve the LanceDB query endpoint
+- a third Amazon S3 bucket to store LanceDB databases
+
+The diagram below details how those resources interact together.
+
+![Visual Guessing Game architecture diagram](./docs/architecture.png)
+
 ## Prerequisites
 
 To build and deploy this .NET application, you need to install the following prerequisites on your development machine:
@@ -162,27 +183,6 @@ https://localhost:7215
 ## Debugging locally
 
 You can leverage JetBrains Rider or Visual Studio 2022 debuggers to debug locally the backend API or the frontent web application. 
-
-## Architecture
-
-The Visual Guessing Game application uses the following AWS resources:
-
-- an Amazon S3 bucket to store the static assets of the single page application
-- an Amazon CloudFront distribution to service the single page application assets
-- an Amazon Cognito User Pool and Identity Pool to manage users and to provide temporary credentials to those users for accessing AWS services
-- an Amazon API Gateway to host the endpoint that triggers the main AWS Lambda function
-- an Amazon Lamdbda function to host the ASP.NET Core minimal API compiled with Native AOT
-- the Amazon Titan Image Generator foundation model served by Amazon Bedrock to generate images
-- a second Amazon S3 bucket to store generated images
-- the Anthropic Claude 3 Sonnet foundation model server by Amazon to describe images
-- the Cohere Embed Multilingual model to transform the image description into embeddings
-- a second AWS Lambda function to serve the LanceDB indexation endpoint
-- a third AWS Lambda function to serve the LanceDB query endpoint
-- a third Amazon S3 bucket to store LanceDB databases
-
-The diagram below details how those resources interact together.
-
-![Visual Guessing Game architecture diagram](./docs/architecture.png)
 
 ## Contributions
 
