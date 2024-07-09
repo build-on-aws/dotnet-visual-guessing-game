@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CodeSnippets xmlns="http://schemas.microsoft.com/VisualStudio/2005/CodeSnippet">
+    <CodeSnippet Format="1.0.0">
+        <Header>
+            <Title>records for visual guessing game backgroud task</Title>
+            <Shortcut>vggrecord</Shortcut>
+        </Header>
+        <Snippet>
+            <Code Language="CSharp">
+                <![CDATA[
+                        public record EmbedResponse(IEnumerable<IEnumerable<float>> embeddings, string id, string response_type, IEnumerable<string> texts);
+
+						public record LanceDBIndexRequest(string collection, IEnumerable<float> vector, string image_location, string image_description);
+
+                ]]>
+            </Code>
+        </Snippet>
+    </CodeSnippet>
+</CodeSnippets>

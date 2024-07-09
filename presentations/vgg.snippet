@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CodeSnippets xmlns="http://schemas.microsoft.com/VisualStudio/2005/CodeSnippet">
+    <CodeSnippet Format="1.0.0">
+        <Header>
+            <Title>visual guessing game backgroud task</Title>
+            <Shortcut>vgg</Shortcut>
+        </Header>
+        <Snippet>
+            <Code Language="CSharp">
+                <![CDATA[
+                    JsonDocument json = JsonDocument.Parse(message.Body);
+
+                    string bucketName = json.RootElement.GetProperty("Records")[0].GetProperty("s3").GetProperty("bucket").GetProperty("name").GetString() ?? "";
+                    string key = json.RootElement.GetProperty("Records")[0].GetProperty("s3").GetProperty("object").GetProperty("key").GetString() ?? "";
+
+                    Console.WriteLine($"bucket name: {bucketName}");
+                    Console.WriteLine($"key: {key}");
+
+                    var s3Client = new AmazonS3Client(RegionEndpoint.USEast1);
+                    var s3Object = await s3Client.GetObjectAsync(new GetObjectRequest()
+                    {
+                        BucketName = bucketName,
+                        Key = key
+                    });
+
+                    if (s3Object.HttpStatusCode != System.Net.HttpStatusCode.OK)
+                        return;
+
+                    var reader = new MemoryStream();
+                    await s3Object.ResponseStream.CopyToAsync(reader);
+                    string base64Image = Convert.ToBase64String(reader.ToArray());
+
+                    var bedrockRuntime = new AmazonBedrockRuntimeClient(RegionEndpoint.USEast1);
+
+
+                    string claude3SonnetPayload = new JsonObject()
+                    {
+                        { "anthropic_version", "bedrock-2023-05-31" },
+                        { "max_tokens", 2048 },
+                        { "messages", new JsonArray()
+                            {
+                                new {
+                                    role = "user",
+                                    content = new JsonArray()
+                                    {
+                                        new
+                                        {
+                                            type = "image",
+                                            source = new {
+                                                type = "base64",
+                                                media_type = "image/png",
+                                                data = base64Image
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }.ToJsonString();
+
+                    var claude3SonnetInvokeResponse = await bedrockRuntime.InvokeModelAsync(new InvokeModelRequest()
+                    {
+                        ModelId = "anthropic.claude-3-sonnet-20240229-v1:0",
+                        Body = AWSSDKUtils.GenerateMemoryStreamFromString(claude3SonnetPayload),
+                        ContentType = "application/json",
+                        Accept = "application/json"
+                    });
+
+                    if (claude3SonnetInvokeResponse is not null && claude3SonnetInvokeResponse.HttpStatusCode == System.Net.HttpStatusCode.OK)
+                    {
+
+                        var claude3SonnetResults = JsonNode.ParseAsync(claude3SonnetInvokeResponse.Body).Result?["content"]?.AsArray();
+                        var imageDescription = new StringBuilder();
+                        if (claude3SonnetResults is not null)
+                        {
+                            foreach (var content in claude3SonnetResults)
+                            {
+                                imageDescription.Append(content?["text"]);
+                            }
+                        }
+                        Console.WriteLine(imageDescription.ToString());
+
+
+                        string embedMultilingualPayload = new JsonObject()
+                        {
+                            {
+                                "texts", new JsonArray()
+                                {
+                                    imageDescription.ToString()
+                                }
+                            },
+                            {
+                                "input_type", "search_document"
+                            }
+                        }.ToJsonString();
+
+                        var embedMultilingualInvokeResponse = await bedrockRuntime.InvokeModelAsync(new InvokeModelRequest()
+                        {
+                            ModelId = "cohere.embed-multilingual-v3",
+                            Body = AWSSDKUtils.GenerateMemoryStreamFromString(embedMultilingualPayload),
+                            ContentType = "application/json",
+                            Accept = "application/json"
+                        });
+
+                        if (embedMultilingualInvokeResponse is not null && embedMultilingualInvokeResponse.HttpStatusCode == System.Net.HttpStatusCode.OK)
+                        {
+                            var embedMultilingualResults = JsonSerializer.Deserialize<EmbedResponse>(embedMultilingualInvokeResponse.Body);
+
+                            var lambda = new AmazonLambdaClient();
+                            await lambda.InvokeAsync(new Amazon.Lambda.Model.InvokeRequest()
+                            {
+                                FunctionName = Environment.GetEnvironmentVariable("LanceDBIndexFunction"),
+                                InvocationType = InvocationType.RequestResponse,
+                                Payload = JsonSerializer.Serialize<LanceDBIndexRequest>(
+                                    new LanceDBIndexRequest(
+                                        key.Split('/')[0],
+                                        embedMultilingualResults?.embeddings.First() ?? [],
+                                        key.Split('/')[1],
+                                        imageDescription.ToString()))
+                            });
+                        }
+                    }
+
+                ]]>
+            </Code>
+            <Imports>
+                <Import>
+                    <Namespace>Amazon</Namespace>
+				</Import>
+				<Import>
+					<Namespace>Amazon.BedrockRuntime</Namespace>
+				</Import>
+				<Import>
+					<Namespace>Amazon.BedrockRuntime.Model</Namespace>
+				</Import>
+				<Import>
+					<Namespace>Amazon.Lambda</Namespace>
+				</Import>
+				<Import>
+					<Namespace>Amazon.Lambda.Core</Namespace>
+				</Import>
+				<Import>
+					<Namespace>Amazon.Lambda.SQSEvents</Namespace>
+				</Import>
+				<Import>
+					<Namespace>Amazon.S3</Namespace>
+				</Import>
+				<Import>
+					<Namespace>Amazon.S3.Model</Namespace>
+				</Import>
+				<Import>
+					<Namespace>Amazon.Util</Namespace>
+				</Import>
+				<Import>
+					<Namespace>System.Text</Namespace>
+				</Import>
+				<Import>
+					<Namespace>System.Text.Json</Namespace>
+				</Import>
+				<Import>
+					<Namespace>System.Text.Json.Nodes</Namespace>
+				</Import>
+            </Imports>
+        </Snippet>
+    </CodeSnippet>
+</CodeSnippets>
